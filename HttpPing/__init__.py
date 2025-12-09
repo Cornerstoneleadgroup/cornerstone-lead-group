@@ -4,8 +4,10 @@ import azure.functions as func
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("HTTP trigger function 'HttpPing' processed a request.")
 
+    # Try to get ?name= from the query string
     name = req.params.get("name")
     if not name:
+        # If not in the URL, try to get it from JSON body
         try:
             req_body = req.get_json()
         except ValueError:
