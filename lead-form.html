@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cornerstone Lead Intake</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 40px;
+    }
+    .form-box {
+      max-width: 400px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+    }
+    button {
+      margin-top: 16px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .status {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-box">
+    <h2>Request Service</h2>
+
+    <label>Name</label>
+    <input id="name" type="text" />
+
+    <label>Phone</label>
+    <input id="phone" type="text" />
+
+    <label>Email</label>
+    <input id="email" type="email" />
+
+    <label>Service Needed</label>
+    <input id="service" type="text" />
+
+    <label>Message</label>
+    <textarea id="message"></textarea>
+
+    <button onclick="submitLead()">Submit</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+<script>
+async function submitLead() {
+  const status = document.getElementById("status");
+  status.textContent = "Sending...";
+
+  const data = {
+    name: document.getElementById("name").value,
+    phone: document.getElementById("phone").value,
+    email: document.getElementById("email").value,
+    service: document.getElementById("service").value,
+    message: document.getElementById("message").value
+  };
+
+  try {
+    const response = await fetch(
+      "https://cornerstone-functions01-cpfhbxa7d2hrg2ec.centralus-01.azurewebsites.net/api/LeadIntake",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      }
+    );
+
+    const result = await response.json();
+
+    if (result.ok) {
+      status.textContent = "Thank you! Your request was sent.";
+    } else {
+      status.textContent = "Error: " + result.error;
+    }
+  } catch (err) {
+    status.textContent = "Network error. Please try again.";
+  }
+}
+</script>
+
+</body>
+</html>
