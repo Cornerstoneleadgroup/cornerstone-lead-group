@@ -74,8 +74,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             overwrite=False
         )
 
-    except Exception:
-        logging.exception("Failed to store lead in Blob Storage.")
-        return _resp(500, {"ok": False, "error": "Failed to store lead."})
+    except Exception as e:
+    logging.exception("Failed to store lead in Blob Storage.")
+    return _resp(500, {
+        "ok": False,
+        "error": "DEBUG ERROR",
+        "details": str(e)
+    })
+
 
     return _resp(200, {"ok": True, "stored": True, "lead_id": lead["id"]})
