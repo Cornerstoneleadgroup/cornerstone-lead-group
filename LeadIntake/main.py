@@ -1,48 +1,81 @@
 import json
 import logging
+import os
+import uuid
+from datetime import datetime, timezone
+
 import azure.functions as func
+from azure.storage.blob import BlobServiceClient
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400"
 }
 
-def main(req: func.HttpRequest) -> func.HttpResponse:
-    # Handle CORS preflight
-    if req.method == "OPTIONS":
-        return func.HttpResponse(
-            "",
-            status_code=204,
-            headers=CORS_HEADERS
-        )
+CONTAINER_NAME = "leads"
 
+def _resp(status: int, body: dict):
+    return func.HttpResponse(
+        json.dumps(body),
+        status_code=status,
+        mimetype="application/json",
+        headers=CORS_HEADERS
+    )
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    # CORS preflight
+    if req.method == "OPTIONS":
+        return func.HttpResponse("", status_code=204, headers=CORS_HEADERS)
+
+    # Parse JSON
     try:
         data = req.get_json()
     except ValueError:
-        return func.HttpResponse(
-            json.dumps({"ok": False, "error": "Invalid JSON"}),
-            status_code=400,
-            headers=CORS_HEADERS,
-            mimetype="application/json"
-        )
+        return _resp(400, {"ok": False, "error": "Invalid JSON. Send a JSON body."})
 
     name = (data.get("name") or "").strip()
     phone = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+    service = (data.get("service") or "").strip()
+    message = (data.get("message") or "").strip()
 
     if not name or not phone:
-        return func.HttpResponse(
-            json.dumps({"ok": False, "error": "Name and phone required"}),
-            status_code=400,
-            headers=CORS_HEADERS,
-            mimetype="application/json"
+        return _resp(400, {"ok": False, "error": "Name and phone required."})
+
+    lead = {
+        "id": str(uuid.uuid4()),
+        "received_utc": datetime.now(timezone.utc).isoformat(),
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "service": service,
+        "message": message,
+        "source": "github-pages-form"
+    }
+
+    # Save to Blob Storage using AzureWebJobsStorage connection string
+    try:
+        conn_str = os.environ.get("AzureWebJobsStorage")
+        if not conn_str:
+            logging.error("AzureWebJobsStorage env var missing.")
+            return _resp(500, {"ok": False, "error": "Server storage not configured."})
+
+        blob_service = BlobServiceClient.from_connection_string(conn_str)
+        container_client = blob_service.get_container_client(CONTAINER_NAME)
+
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+        blob_name = f"{ts}__{lead['id']}.json"
+
+        container_client.upload_blob(
+            name=blob_name,
+            data=json.dumps(lead, indent=2),
+            overwrite=False
         )
 
-    logging.info(f"Lead received: {name} {phone}")
+    except Exception:
+        logging.exception("Failed to store lead in Blob Storage.")
+        return _resp(500, {"ok": False, "error": "Failed to store lead."})
 
-    return func.HttpResponse(
-        json.dumps({"ok": True}),
-        status_code=200,
-        headers=CORS_HEADERS,
-        mimetype="application/json"
-    )
+    return _resp(200, {"ok": True, "stored": True, "lead_id": lead["id"]})
