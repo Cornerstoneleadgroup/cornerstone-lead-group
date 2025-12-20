@@ -5,7 +5,6 @@ import uuid
 from datetime import datetime, timezone
 
 import azure.functions as func
-from azure.storage.blob import BlobServiceClient
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -55,12 +54,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "source": "github-pages-form"
     }
 
-    # Save to Blob Storage using AzureWebJobsStorage connection string
+    # --- FORCE THE REAL ERROR TO SHOW UP ---
     try:
+        # Lazy import so we can return a JSON error even if the package is missing
+        try:
+            from azure.storage.blob import BlobServiceClient
+        except Exception as e:
+            logging.exception("Blob SDK import failed.")
+            return _resp(500, {
+                "ok": False,
+                "error": "Blob SDK import failed",
+                "details": str(e)
+            })
+
         conn_str = os.environ.get("AzureWebJobsStorage")
         if not conn_str:
-            logging.error("AzureWebJobsStorage env var missing.")
-            return _resp(500, {"ok": False, "error": "Server storage not configured."})
+            return _resp(500, {"ok": False, "error": "AzureWebJobsStorage missing in app settings."})
 
         blob_service = BlobServiceClient.from_connection_string(conn_str)
         container_client = blob_service.get_container_client(CONTAINER_NAME)
@@ -75,12 +84,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as e:
-    logging.exception("Failed to store lead in Blob Storage.")
-    return _resp(500, {
-        "ok": False,
-        "error": "DEBUG ERROR",
-        "details": str(e)
-    })
-
+        logging.exception("Blob write failed.")
+        return _resp(500, {
+            "ok": False,
+            "error": "Blob write failed",
+            "details": str(e)
+        })
 
     return _resp(200, {"ok": True, "stored": True, "lead_id": lead["id"]})
