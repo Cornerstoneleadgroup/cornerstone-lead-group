@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 import azure.functions as func
 
 CORS_HEADERS = {
@@ -8,10 +9,12 @@ CORS_HEADERS = {
     "Access-Control-Max-Age": "86400"
 }
 
-def main(req: func.HttpRequest) -> func.HttpResponse:
+def main(req: func.HttpRequest, outBlob: func.Out[str]) -> func.HttpResponse:
+    # CORS preflight
     if req.method == "OPTIONS":
         return func.HttpResponse("", status_code=204, headers=CORS_HEADERS)
 
+    # Parse JSON
     try:
         data = req.get_json()
     except ValueError:
@@ -24,6 +27,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     name = (data.get("name") or "").strip()
     phone = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+    service = (data.get("service") or "").strip()
+    message = (data.get("message") or "").strip()
 
     if not name or not phone:
         return func.HttpResponse(
@@ -33,8 +39,21 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             headers=CORS_HEADERS
         )
 
+    lead = {
+        "received_utc": datetime.now(timezone.utc).isoformat(),
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "service": service,
+        "message": message,
+        "source": "github-pages-form"
+    }
+
+    # Write to blob via binding
+    outBlob.set(json.dumps(lead, indent=2))
+
     return func.HttpResponse(
-        json.dumps({"ok": True, "msg": f"Hello, {name}. LeadIntake is alive."}),
+        json.dumps({"ok": True, "stored": True}),
         status_code=200,
         mimetype="application/json",
         headers=CORS_HEADERS
