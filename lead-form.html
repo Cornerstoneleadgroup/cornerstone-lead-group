@@ -51,7 +51,13 @@
 <span id="phoneStatus" style="margin-left:8px;font-weight:bold;"></span>
 
   <label for="email">Email</label>
-  <input id="email" type="email" />
+<input
+  type="email"
+  id="email"
+  name="email"
+  autocomplete="off"
+  placeholder="name@example.com"
+/>
 
   <label for="service">Service</label>
   <select id="service">
@@ -107,6 +113,22 @@
     }
   }
 
+  function isValidEmail(email) {
+    if (!email) return true; // email is optional
+    if (!email.includes("@")) return false;
+
+    const parts = email.split("@");
+    if (parts.length !== 2) return false;
+
+    const local = parts[0].trim();
+    const domain = parts[1].trim();
+
+    if (!local || !domain) return false;
+    if (!domain.includes(".")) return false;
+
+    return true;
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     const phoneInput = document.getElementById("phone");
     if (phoneInput) {
@@ -120,8 +142,10 @@
     status.textContent = "";
 
     const name = document.getElementById("name").value.trim();
+
     const phoneRaw = document.getElementById("phone").value.trim();
     const phoneDigits = digitsOnly(phoneRaw);
+
     const email = document.getElementById("email").value.trim();
     const service = document.getElementById("service").value.trim();
     const message = document.getElementById("message").value.trim();
@@ -140,6 +164,11 @@
 
     if (phoneDigits.length !== 10) {
       status.textContent = "Please enter a full 10-digit phone number.";
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      status.textContent = "Please enter a valid email address.";
       return;
     }
 
