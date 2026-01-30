@@ -51,26 +51,37 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "source": "github-pages-form"
     }
 
+    # --- STORAGE WRITE (with real error returned if it fails) ---
     try:
-        connect_str = os.environ["AzureWebJobsStorage"]
+        connect_str = os.environ.get("AzureWebJobsStorage")
+        if not connect_str:
+            raise Exception("AzureWebJobsStorage is missing in Function App settings.")
+
         blob_service_client = BlobServiceClient.from_connection_string(connect_str)
         container_client = blob_service_client.get_container_client("leads")
+
+        # Force a real error if container doesn't exist / auth fails
+        container_client.get_container_properties()
 
         blob_name = f"{datetime.utcnow().isoformat()}_{lead_id}.json"
         blob_client = container_client.get_blob_client(blob_name)
 
         blob_client.upload_blob(json.dumps(lead_data), overwrite=True)
 
-        except Exception as e:
+    except Exception as e:
         logging.exception("Storage error (full exception):")
         return func.HttpResponse(
-            json.dumps({"ok": False, "error": str(e)}),
+            json.dumps({
+                "ok": False,
+                "error": str(e),
+                "hint": "Storage write failed. Check AzureWebJobsStorage and that container name is exactly 'leads'."
+            }),
             status_code=500,
             mimetype="application/json"
         )
 
     return func.HttpResponse(
-        json.dumps({"ok": True}),
+        json.dumps({"ok": True, "lead_id": lead_id}),
         status_code=200,
         mimetype="application/json"
     )
