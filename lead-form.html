@@ -23,6 +23,11 @@
     }
     button {
       margin-top: 16px;
+      cursor: pointer;
+    }
+    button[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
     #status {
       margin-top: 12px;
@@ -59,7 +64,6 @@
     placeholder="name@example.com"
   />
 
-  <!-- ✅ ZIP CODE FIELD -->
   <label for="zip">ZIP Code *</label>
   <input
     type="text"
@@ -72,13 +76,13 @@
     required
   />
 
-  <label for="service">Service</label>
-  <select id="service">
+  <label for="service">Service *</label>
+  <select id="service" required>
     <option value="">Select one</option>
-    <option>Roofing</option>
-    <option>Siding</option>
-    <option>Gutters</option>
-    <option>Other</option>
+    <option value="Roofing">Roofing</option>
+    <option value="Siding">Siding</option>
+    <option value="Gutters">Gutters</option>
+    <option value="Other">Other</option>
   </select>
 
   <label for="message">Message</label>
@@ -90,7 +94,7 @@
     <input id="website" type="text" autocomplete="off" />
   </div>
 
-  <button onclick="submitLead()">Submit</button>
+  <button id="submitBtn" onclick="submitLead()">Submit</button>
 
   <div id="status"></div>
 
@@ -137,6 +141,11 @@
       return true;
     }
 
+    function isValidZip(zip) {
+      // ZIP is required, so it must be exactly 5 digits
+      return /^\d{5}$/.test(zip);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       const phoneInput = document.getElementById("phone");
       if (phoneInput) {
@@ -147,6 +156,8 @@
 
     async function submitLead() {
       const status = document.getElementById("status");
+      const btn = document.getElementById("submitBtn");
+
       status.textContent = "";
 
       const name = document.getElementById("name").value.trim();
@@ -174,8 +185,13 @@
         return;
       }
 
-      if (!/^\d{5}$/.test(zip)) {
+      if (!isValidZip(zip)) {
         status.textContent = "Please enter a valid 5-digit ZIP code.";
+        return;
+      }
+
+      if (!service) {
+        status.textContent = "Please select a service.";
         return;
       }
 
@@ -184,6 +200,8 @@
         return;
       }
 
+      // Prevent double-submits
+      btn.disabled = true;
       status.textContent = "Sending...";
 
       try {
@@ -212,6 +230,8 @@
         }
       } catch (err) {
         status.textContent = "Network error.";
+      } finally {
+        btn.disabled = false;
       }
     }
   </script>
