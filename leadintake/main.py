@@ -61,10 +61,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         blob_client.upload_blob(json.dumps(lead_data), overwrite=True)
 
-    except Exception as e:
-        logging.error(f"Storage error: {e}")
+        except Exception as e:
+        logging.exception("Storage error (full exception):")
         return func.HttpResponse(
-            json.dumps({"ok": False, "error": "Storage failure"}),
+            json.dumps({"ok": False, "error": str(e)}),
             status_code=500,
             mimetype="application/json"
         )
